@@ -24,4 +24,4 @@ source_config;
 make_target_dir;
 db_snap;
 
-echo "Done. Target dir: $DIRNAME";
+echo "Done. Target dir: $TARGET_DIR";

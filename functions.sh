@@ -76,9 +76,14 @@ source_config() {
 }
 
 make_target_dir(){
-  DIRNAME="${backup_dir}/backup_$(date +%m%d%Y_%H%M%S)";
-  echo "Target dir: $DIRNAME";
-  mkdir -p $DIRNAME;
+  TARGET_DIR="${backup_dir}/backup_$(date +%m%d%Y_%H%M%S)";
+  echo "Target dir: $TARGET_DIR";
+  mkdir -p $TARGET_DIR;
+}
+
+timestamp_target_dir(){
+  # Create a timestamp file for this backup.
+  echo "This file's timestamp is the creation time of this backup." > $TARGET_DIR/BACKUP_TIMESTAMP
 }
 
 # Dump wp and civcirm databases
@@ -93,7 +98,7 @@ db_snap() {
 
   echo "Archiving databases ..."
   echo "  Wordpress ..."
-  mysqldump -u $mysql_user --password="$mysql_password" --no-tablespaces --routines $MYSQL_OPTIONS $mysql_database_wordpress | gzip > $DIRNAME/cms.sql.gz
+  mysqldump -u $mysql_user --password="$mysql_password" --no-tablespaces --routines $MYSQL_OPTIONS $mysql_database_wordpress | gzip > $TARGET_DIR/cms.sql.gz
 
   if [[ -n $mysql_database_civicrm ]]; then
     if [[ -z "$mysql_user_civicrm" ]]; then
@@ -116,9 +121,10 @@ db_snap() {
       MYSQL_OPTIONS="$MYSQL_OPTIONS --port=$mysql_port_civicrm"
     fi
     echo "  CiviCRM..."
-    mysqldump -u $mysql_user_civicrm --password="$mysql_password_civicrm" --no-tablespaces --routines $MYSQL_OPTIONS $mysql_database_civicrm | gzip > $DIRNAME/civicrm.sql.gz
+    mysqldump -u $mysql_user_civicrm --password="$mysql_password_civicrm" --no-tablespaces --routines $MYSQL_OPTIONS $mysql_database_civicrm | gzip > $TARGET_DIR/civicrm.sql.gz
   fi
 
+  timestamp_target_dir;
 }
 
 # archive files
@@ -133,5 +139,7 @@ file_snap() {
   cd $wp_root_dir;
   cd ..
   wp_root_basename=$(basename $wp_root_dir);
-  $sudocmd tar --exclude="${wp_root_basename}/wp-content/updraft" -czf $DIRNAME/files.tgz "$wp_root_basename";
+  $sudocmd tar --exclude="${wp_root_basename}/wp-content/updraft" -czf $TARGET_DIR/files.tgz "$wp_root_basename";
+
+  timestamp_target_dir;
 }

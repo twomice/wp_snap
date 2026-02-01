@@ -25,4 +25,4 @@ make_target_dir;
 file_snap;
 db_snap;
 
-echo "Done. Target dir: $DIRNAME";
+echo "Done. Target dir: $TARGET_DIR";
