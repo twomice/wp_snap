@@ -1,0 +1,5 @@
+# Ignore all config files by default
+*
+
+# Keep this file
+!.gitignore

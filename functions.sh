@@ -1,10 +1,76 @@
-# Source config file or exit.
+# Print usage/help
+usage() {
+  local SCRIPT_NAME
+
+  SCRIPT_NAME="$(basename "$0")"
+
+  cat <<EOF
+
+${SCRIPT_NAME}: ${SCRIPT_DESCRIPTION}
+
+Usage: ${SCRIPT_NAME} [OPTIONS]
+
+Options:
+  --config-file|-c FILE    Use config/FILE instead of the default config.sh
+  --help                   Show this help and exit
+
+Notes:
+  - If --config-file is not specified, ${SCRIPT_NAME} uses ./config.sh
+  - Config files specified with --config-file must live in ./config/
+
+Examples:
+  ${SCRIPT_NAME}
+  ${SCRIPT_NAME} --config-file prod.sh
+  ${SCRIPT_NAME} --config-file=staging.sh
+EOF
+}
+
+
+# Parse command-line options.
+parse_options() {
+  CONFIG_FILE_OVERRIDE=""
+
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --config-file|-c)
+        if [[ -z "$2" || "$2" == --* ]]; then
+          echo "--config-file requires an argument"
+          exit 1
+        fi
+        CONFIG_FILE_OVERRIDE="$2"
+        shift 2
+        ;;
+      --config-file=*)
+        CONFIG_FILE_OVERRIDE="${1#*=}"
+        shift
+        ;;
+      --help)
+        usage
+        exit 0
+        ;;
+      *)
+        echo "Unknown option: $1"
+        exit 1
+        ;;
+    esac
+  done
+}
+
 source_config() {
-  CONFIGFILE=$mydir/config.sh;
-  if [ -e $CONFIGFILE ]; then
-    source $CONFIGFILE;
+  local CONFIGFILE
+  local CONFIG_BASENAME
+
+  if [[ -n "${CONFIG_FILE_OVERRIDE}" ]]; then
+    CONFIG_BASENAME="$(basename "${CONFIG_FILE_OVERRIDE}")"
+    CONFIGFILE="${MYDIR}/config/${CONFIG_BASENAME}"
   else
-    echo "Could not read required config file at $CONFIGFILE. Exiting."
+    CONFIGFILE="${MYDIR}/config.sh"
+  fi
+
+  if [[ -e "${CONFIGFILE}" ]]; then
+    source "${CONFIGFILE}"
+  else
+    echo "Could not read required config file at ${CONFIGFILE}. Exiting."
     exit 1
   fi
 }
