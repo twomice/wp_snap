@@ -141,6 +141,9 @@ file_snap() {
   cd ..
   wp_root_basename=$(basename $wp_root_dir);
   $sudocmd tar --exclude="${wp_root_basename}/wp-content/updraft" -czf $TARGET_DIR/files.tgz "$wp_root_basename";
-
+  if [[ "$use_sudo" == "1" ]]; then
+    # ensure files.tgz doesn't remain root:root, instead copy ownership from $TARGET_DIR
+    sudo chown --reference=$TARGET_DIR $TARGET_DIR/files.tgz
+  fi
   timestamp_target_dir;
 }
