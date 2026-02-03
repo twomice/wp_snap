@@ -68,6 +68,7 @@ source_config() {
   fi
 
   if [[ -e "${CONFIGFILE}" ]]; then
+    echo "Using config file: ${CONFIGFILE}"
     source "${CONFIGFILE}"
   else
     echo "Could not read required config file at ${CONFIGFILE}. Exiting."
