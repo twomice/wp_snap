@@ -13,6 +13,7 @@ Usage: ${SCRIPT_NAME} [OPTIONS]
 Options:
   --config-file|-c FILE    Use config/FILE instead of the default config.sh
   --prune|-p               Prune old snaps, per max_snap_age_days config setting
+                           and print named of post-prune snaps remaining.
   --sums|-s                After completing snap, print sha256sums of each file to STDOUT
   --help                   Show this help and exit
 
@@ -28,11 +29,15 @@ EOF
 }
 
 info() {
-  >&2 echo "$1"
+  if [[ -n "$1" ]]; then
+    >&2 echo "$1"
+  fi
 }
 
 output() {
-  echo "$1"
+  if [[ -n "$1" ]]; then
+    echo "$1"
+  fi
 }
 
 fatal() {
@@ -217,6 +222,8 @@ prune_old_snaps() {
     info "Pruning old snap: $snapdir"
     rm -r --one-file-system -- "$snapdir";
   done
+  echo "Pruned snaps to ${max_snap_age_days} days. Remaining snaps:"
+  ls -1d $backup_dir/backup_*;
 }
 
 print_checksums() {

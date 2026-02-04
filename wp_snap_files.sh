@@ -24,7 +24,7 @@ source_config;
 validate_config_or_exit;
 make_target_dir;
 file_snap;
+print_checksums;
 prune_old_snaps;
 
 info "Target dir: $TARGET_DIR";
-print_checksums;

@@ -22,9 +22,12 @@ fi
 parse_options "$@"
 source_config;
 validate_config_or_exit;
+PRUNE_MESSAGE=$(prune_old_snaps);
 make_target_dir;
 db_snap;
-prune_old_snaps;
+CHECKSUM_MESSAGE=$(print_checksums);
+
+output "$CHECKSUM_MESSAGE"
+output "$PRUNE_MESSAGE"
 
 info "Target dir: $TARGET_DIR";
-print_checksums;
