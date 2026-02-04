@@ -12,6 +12,7 @@ Usage: ${SCRIPT_NAME} [OPTIONS]
 
 Options:
   --config-file|-c FILE    Use config/FILE instead of the default config.sh
+  --prune|-p               Prune old snaps, per max_snap_age_days config setting
   --help                   Show this help and exit
 
 Notes:
@@ -42,6 +43,10 @@ parse_options() {
         ;;
       --config-file=*)
         CONFIG_FILE_OVERRIDE="${1#*=}"
+        shift
+        ;;
+      --prune|-p)
+        IS_PRUNE="1"
         shift
         ;;
       --help)
@@ -146,4 +151,44 @@ file_snap() {
     sudo chown --reference=$TARGET_DIR $TARGET_DIR/files.tgz
   fi
   timestamp_target_dir;
+}
+
+# Ensure configurations are valid
+validate_config_or_exit() {
+  local has_bad_config=0
+  # Test whether $max_snap_age_days is an integer > -1
+  if [[ -n "${max_snap_age_days}" ]]; then
+    if [[ ! $max_snap_age_days =~ ^[1-9][0-9]*$ ]]; then
+      echo "CONFIGURATION INVALID: max_snap_age_days must be a positive integer: '${max_snap_age_days}' found"
+      has_bad_config=1
+    fi
+  fi
+
+  if [[ "$has_bad_config" != "0" ]]; then
+    echo "CONFIGURATION INVALID. See notes above."
+    exit 1;
+  fi
+}
+
+# Prune old snaps if so configured and instructed.
+prune_old_snaps() {
+  # Note:
+  #   $IS_PRUNE was set in parse_options().
+
+  # Redundantly call validate_config_or_exit(). It was already called in the
+  # main script body, but this is a destructive function, so we prefer the
+  # redundant check.
+  validate_config_or_exit;
+
+  if [[ "$IS_PRUNE" != "1" || -z "$max_snap_age_days" ]]; then
+    return;
+  fi
+  if [[ ! -d "$backup_dir" ]]; then
+    return;
+  fi
+  find "$backup_dir" -mindepth 2 -maxdepth 2 -type f -name "BACKUP_TIMESTAMP" -mtime +"$max_snap_age_days" -printf '%h\0' | sort -zu |
+  while IFS= read -r -d '' snapdir; do
+    echo "Pruning old snap: $snapdir"
+    rm -r --one-file-system -- "$snapdir";
+  done
 }

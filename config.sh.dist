@@ -25,5 +25,15 @@ mysql_user_civicrm="";
 mysql_host_civicrm="";
 mysql_port_civicrm="";
 
+# Prune old snaps?
+# After completing any snap, if --prune is specified, $backup_dir will be checked
+# for snaps older than this many days; any such snaps will be deleted.
+#
+# Must be a non-negative integer.
+# If empty, no pruning is done.
+#
+# WARNING: THIS IS A DESTRUCTIVE SETTING. PROCEED WITH CARE.
+max_snap_age_days="";
+
 # Set this to "1" to use sudo when  backing up files.
 use_sudo=""

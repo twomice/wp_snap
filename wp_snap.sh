@@ -21,8 +21,10 @@ fi
 
 parse_options "$@"
 source_config;
+validate_config_or_exit;
 make_target_dir;
 file_snap;
 db_snap;
+prune_old_snaps;
 
 echo "Done. Target dir: $TARGET_DIR";
