@@ -15,7 +15,7 @@ SCRIPT_DESCRIPTION="Take a snapshot of a given site's WordPress and CiviCRM data
 if [[ -e ${MYDIR}/functions.sh ]]; then
   source ${MYDIR}/functions.sh
 else 
-  echo "Could not find required functions file at ${MYDIR}/functions.sh. Exiting."
+  >&2 echo "Could not find required functions file at ${MYDIR}/functions.sh. Exiting."
   exit 1
 fi
 
@@ -27,4 +27,5 @@ file_snap;
 db_snap;
 prune_old_snaps;
 
-echo "Done. Target dir: $TARGET_DIR";
+info "Target dir: $TARGET_DIR";
+print_checksums;

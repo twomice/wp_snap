@@ -13,6 +13,7 @@ Usage: ${SCRIPT_NAME} [OPTIONS]
 Options:
   --config-file|-c FILE    Use config/FILE instead of the default config.sh
   --prune|-p               Prune old snaps, per max_snap_age_days config setting
+  --sums|-s                After completing snap, print sha256sums of each file to STDOUT
   --help                   Show this help and exit
 
 Notes:
@@ -26,6 +27,32 @@ Examples:
 EOF
 }
 
+info() {
+  >&2 echo "$1"
+}
+
+output() {
+  echo "$1"
+}
+
+fatal() {
+  info "FATAL: $1";
+  exit 1;
+}
+
+get_sudo() {
+  [[ ${_SUDO_KEEPALIVE_STARTED:-0} == 1 ]] && return
+  _SUDO_KEEPALIVE_STARTED=1
+
+  info "Acquiring sudo access ..."
+  sudo -v || return 1
+
+  while true; do
+    sleep 60
+    sudo -n true
+    kill -0 "$$" || exit
+  done 2>/dev/null &
+}
 
 # Parse command-line options.
 parse_options() {
@@ -35,8 +62,7 @@ parse_options() {
     case "$1" in
       --config-file|-c)
         if [[ -z "$2" || "$2" == --* ]]; then
-          echo "--config-file requires an argument"
-          exit 1
+          fatal "--config-file requires an argument"
         fi
         CONFIG_FILE_OVERRIDE="$2"
         shift 2
@@ -49,13 +75,16 @@ parse_options() {
         IS_PRUNE="1"
         shift
         ;;
+      --sums|-s)
+        IS_SUMS="1"
+        shift
+        ;;
       --help)
         usage
         exit 0
         ;;
       *)
-        echo "Unknown option: $1"
-        exit 1
+        fatal "Unknown option: $1"
         ;;
     esac
   done
@@ -73,17 +102,16 @@ source_config() {
   fi
 
   if [[ -e "${CONFIGFILE}" ]]; then
-    echo "Using config file: ${CONFIGFILE}"
+    info "Using config file: ${CONFIGFILE}"
     source "${CONFIGFILE}"
   else
-    echo "Could not read required config file at ${CONFIGFILE}. Exiting."
-    exit 1
+    fatal "Could not read required config file at ${CONFIGFILE}. Exiting."
   fi
 }
 
 make_target_dir(){
   TARGET_DIR="${backup_dir}/backup_$(date +%m%d%Y_%H%M%S)";
-  echo "Target dir: $TARGET_DIR";
+  info "Target dir: $TARGET_DIR";
   mkdir -p $TARGET_DIR;
 }
 
@@ -102,8 +130,8 @@ db_snap() {
     MYSQL_OPTIONS="$MYSQL_OPTIONS --port=$mysql_port"
   fi
 
-  echo "Archiving databases ..."
-  echo "  Wordpress ..."
+  info "Archiving databases ..."
+  info "  Wordpress ..."
   mysqldump -u $mysql_user --password="$mysql_password" --no-tablespaces --routines $MYSQL_OPTIONS $mysql_database_wordpress | gzip > $TARGET_DIR/cms.sql.gz
 
   if [[ -n $mysql_database_civicrm ]]; then
@@ -126,7 +154,7 @@ db_snap() {
     if [[ -n "$mysql_port_civicrm" ]]; then
       MYSQL_OPTIONS="$MYSQL_OPTIONS --port=$mysql_port_civicrm"
     fi
-    echo "  CiviCRM..."
+    info "  CiviCRM..."
     mysqldump -u $mysql_user_civicrm --password="$mysql_password_civicrm" --no-tablespaces --routines $MYSQL_OPTIONS $mysql_database_civicrm | gzip > $TARGET_DIR/civicrm.sql.gz
   fi
 
@@ -137,11 +165,10 @@ db_snap() {
 file_snap() {
   if [[ "$use_sudo" == "1" ]]; then
     sudocmd="sudo"
-    echo "Acquiring sudo access ..."
-    sudo echo "Thank you."
+    get_sudo
   fi
 
-  echo "Archiving files ..."
+  info "Archiving files ..."
   cd $wp_root_dir;
   cd ..
   wp_root_basename=$(basename $wp_root_dir);
@@ -159,14 +186,13 @@ validate_config_or_exit() {
   # Test whether $max_snap_age_days is an integer > -1
   if [[ -n "${max_snap_age_days}" ]]; then
     if [[ ! $max_snap_age_days =~ ^[1-9][0-9]*$ ]]; then
-      echo "CONFIGURATION INVALID: max_snap_age_days must be a positive integer: '${max_snap_age_days}' found"
+      info "CONFIGURATION INVALID: max_snap_age_days must be a positive integer: '${max_snap_age_days}' found"
       has_bad_config=1
     fi
   fi
 
   if [[ "$has_bad_config" != "0" ]]; then
-    echo "CONFIGURATION INVALID. See notes above."
-    exit 1;
+    fatal "CONFIGURATION INVALID. See notes above."
   fi
 }
 
@@ -188,7 +214,15 @@ prune_old_snaps() {
   fi
   find "$backup_dir" -mindepth 2 -maxdepth 2 -type f -name "BACKUP_TIMESTAMP" -mtime +"$max_snap_age_days" -printf '%h\0' | sort -zu |
   while IFS= read -r -d '' snapdir; do
-    echo "Pruning old snap: $snapdir"
+    info "Pruning old snap: $snapdir"
     rm -r --one-file-system -- "$snapdir";
   done
+}
+
+print_checksums() {
+  if [[ "$IS_SUMS" == "1" ]]; then
+    output "Files in $TARGET_DIR";
+    cd $TARGET_DIR;
+    sha256sum *
+  fi
 }
